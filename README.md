@@ -14,7 +14,7 @@ Instafood is an online app-based meals delivery service. Customers can place an 
 
 ### Cadence Cookbooks
 
-- [Polling External Services](https://github.com/instaclustr/cadence-cookbooks-instafood/blob/main/cookbooks/polling/polling-megafood.md)
+- [Polling External Services](https://github.com/instaclustr/cadence-cookbooks-instafood/blob/main/cookbooks/polling/polling-megafood.md) - (Cookbook Authors: [Adam Zegelin](https://github.com/zegelin) and [Ivan Pondal](https://github.com/ivanpondal) with contributions from [John Del Castillo](https://github.com/johndelcastillo) and [Paul Brebner](https://github.com/paul-brebner)).
 - Watch out for the next one!
 
 ## Further Information
