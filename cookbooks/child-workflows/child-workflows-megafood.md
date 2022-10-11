@@ -1,4 +1,4 @@
-# Instafood: Cadence Polling External Services Cookbook
+# Instafood: Cadence Child Workflow Cookbook
 
 ![Instaclustr Managed Cadence](images/Instaclustr_Product_Managed_Cadence.png)
 
@@ -31,7 +31,7 @@ Cadence is an orchestration framework that helps developers write fault-tolerant
 
 Cadence's core abstraction is a fault-oblivious stateful **workflow**. A workflow may start other workflows and wait for them to complete, either synchronously or asynchronously. These are known as **child workflows**, and are a powerful tool which enable developers to coordinate large and complex tasks within the Cadence framework.
 
-Child workflows may be developed over time, such as when two existing workflow processes are joined, or designed from the start to take advantage the features available in Cadence.
+Workflows evolve over time and child workflows may develop as a result of that evolutuion, such as when two existing workflow processes are joined, or designed from the start to take advantage the features available in Cadence.
 
 ![Child workflow diagram](images/TBA.png)
 
@@ -39,11 +39,11 @@ Child workflows may be developed over time, such as when two existing workflow p
 
 What are the advantages of child workflows?
 
-Child workflows have similar functionality as **activities**. An activity is business-level function that implements application logic such as calling a service or transcoding a media file. 
-The parent workflow can monitor the child worflow and track its progress. It can also signal the child workflow, passing information to it from the primary workflow.
+Child workflows have similar functionality to **activities**. An activity is a business-level function that implements application logic such as calling a service or transcoding a media file. 
+The parent workflow can monitor the child worflow and track its progress, and signals can be pass back and forth between the two with client SDK methods.
 
 Child workflows can be implemented by separate **worker processes**. A worker process is the process which is invoked to execute a particular workflow. 
-Separating out a set of activities into a child workflow allows you to ensure the code that gets executed the most has the most resources by scaling those workers appropriately. 
+Separating out a set of activities into a child workflow allows you to ensure the code that gets executed the most often has the most resources by scaling those workers appropriately. 
 
 Another advantage of using child workflows is to work around the built in Cadence limits. There are limits for the number of activities a single workflow can execute. These limits exist due to the way the workflow state is persisted in the backend and they were developed to ensure the most efficient operation of a Cadence cluster.
 For workflows running a high number of activities, we can use child workflows to distribute the work, essentially removing the limit while also gaining the aformentioned scalability.
@@ -52,9 +52,9 @@ When should I use a child workflow?
 
 In many ways, the answer to this question is similar to "when should I extract this code into a function?". If you find your workflows calling the same set of activities it is a prime candidate to be invoked via child workflow.
 
-If your workflow is approaching the limit of activity invocations, using child workflows is required to avoid running into the limits mentioned above.
+If your workflow is approaching the limit of activity invocations, using child workflows is required to avoid running into the limits previously mentioned.
 
-Finally, child workflows are a great way to set boundries between areas of functionality. Keeping all the code related to a specific functional area or responsibility makes them more reusable. We will see an example of this in the following cookbook, where we use child workflows to encapsulate the workflows of different restaurants and delivery processes.
+Finally, child workflows are a great way to set boundaries between areas of functionality. Keeping all the code related to a specific functional area or responsibility makes them more reusable. We will see an example of this in the example below, where we use child workflows to encapsulate the workflows of different restaurants and delivery processes.
 
 ### Invoking a child workflow
 
@@ -74,17 +74,17 @@ The code to invoke a child workflow is almost identical to invoking a regular wo
 ```
 
 We start by creating a **child workflow stub**. When we create this stub we can optionally pass it some **child workflow options**, which allow you to change the rules of how this child workflow executes compared to its parent.
-Some of the options we can change are the domain, tasklist, timeout settings, retry settings and more. If we choose to omit this value, the child workflow will inherit these settings from its parent.
+Some of the options we can change are the domain, tasklist, timeout settings, retry settings and more. If we choose to omit this value, the child workflow will inherit all of these settings from its parent.
 
 The workflow stub has the methods to start the workflow, and they can be invoked in two ways:
-1. Asynchronously - This returns a promise object, a future which will be used to store the result of the child workflow after it has completed. After making this call, the workflow code will continue and the child workflow will execute in parallel.
+1. Asynchronously - This returns a promise object, a *Future* which will be used to store the result of the child workflow after it has completed. After making this call, the workflow code will continue and the child workflow will execute in parallel.
 2. Synchronously - This will block like a regular function call and is invoked as such. The parent workflow won't continue until the child workflow has completed.
 
 ### Child workflow limitations
 
-Since workflows are the main building block of Cadence, there are very few limitations to child workflows. 
+Since workflows are the main building blocks of Cadence, there are very few limitations to child workflows. 
 
-The main one is that there is no shared state between the parent and child workflows. Asynchronous communication can be built between the workflow instances, but if there is constant communication of state going back and forth, its probably a better candidate as a single workflow..
+owever one to be aware of is that there is no shared state between the parent and child workflows. Asynchronous communication can be built between the workflow instances, but if there is constant communication of state going back and forth, its probably a better candidate for a single workflow..
 
 ## Use Case Example: Instafood meets MegaBurgers
 
@@ -112,11 +112,11 @@ In the case of MegaBurger, this is done via a simple **if** statment which is ma
       Async.procedure(megaBurgerOrderWorkflow::orderFood, order);
   }
 ```
-The above example shows how simple this makes the parent workflow, it doesn't have to know about the various peculiarities of each companies order process, thats the job of the child workflow to implement.
+The above example shows how simple this makes the parent workflow, it doesn't have to know about the various peculiarities of each company's order process, thats the job of the child workflow to implement.
 
 ## Setting up Instafood Project
 
-In order to run the sample project by yourself you’ll need to set up a Cadence cluster. We’ll be using Instaclustr’s Managed Service platform to do so.
+In order to run the sample project yourself you’ll need to set up a Cadence cluster. We’ll be using Instaclustr’s Managed Service platform to do so.
 
 ### Step 1 - Creating Instaclustr Managed Clusters
 
@@ -278,15 +278,15 @@ The **@SignalMethod** annotation decorates the method and informs Cadence that t
   // ...
 ```
 Let's break this down a bit:
-1. First, we create a stub to our parent workflow. We do this by calling the Cadence SDK to get the Id of the parent workflow, the create the stub for it.
-2. Now that we have the stub, we get access to the methods on it. We call **updateEta** and provide the ETA, which gets sent asynchronously.
+1. First, we create a stub to our parent workflow. We do this by calling the Cadence SDK to get the Id of the parent workflow, then create the stub for it.
+2. Now that we have the stub, we get access to the methods in it. We call **updateEta** and provide the ETA, which gets sent asynchronously.
 3. The workflow continues as the order is being prepared.
 
 ## Instafood child workflow reflection
 
-The above example is a good example of how to use child workflows, and its a great example of **why** you want to use them.
+Above is a good example of how to use child workflows, and it's also a great example of **why** you want to use them.
 
-Here we are calling a child workflow asynchronously and letting it signal the parent workflow when the important information is ready. 
+Here we are calling a child workflow asynchronously and letting it signal to the parent workflow when the important information is ready. 
 The parent workflow can keep working until this information is ready.
 This is cruicial for a workflow such as this, where we want to inform the customer of an ETA or dispatch a courier, but it doesn't make sense for the restaurant preparation workflow to have this responsibility.
 
@@ -350,4 +350,4 @@ We have 3 actors in this scenario: Instafood, MegaBurger and the Client.
 
 ## Wrapping Up
 
-In this article we got first-hand experience with Cadence and how to use it for polling. We also showed you how to get a Cadence cluster running with our Instaclustr platform and how easy it is to get an application connect to it. If you’re interested in Cadence and want to learn more about it, you may read about other use cases and documentation at [Cadence workflow - Use cases](https://cadenceworkflow.io/docs/use-cases/).
+In this article we got first-hand experience with Cadence and how to use child workflows. We also showed you how to get a Cadence cluster running with our Instaclustr platform and how easy it is to get an application connect to it. If you’re interested in Cadence and want to learn more about it, you may read about other use cases and documentation at [Cadence workflow - Use cases](https://cadenceworkflow.io/docs/use-cases/).
