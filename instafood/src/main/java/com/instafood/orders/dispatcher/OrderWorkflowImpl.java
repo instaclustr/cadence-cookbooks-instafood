@@ -18,10 +18,12 @@ public class OrderWorkflowImpl implements OrderWorkflow {
     @Override
     public void orderFood(FoodOrder order) {
         if (Restaurant.MEGABURGER.equals(order.getRestaurant())) {
-            MegaBurgerOrderWorkflow megaBurgerOrderWorkflow = Workflow.newChildWorkflowStub(MegaBurgerOrderWorkflow.class);
+            MegaBurgerOrderWorkflow megaBurgerOrderWorkflow = Workflow
+                    .newChildWorkflowStub(MegaBurgerOrderWorkflow.class);
             Async.procedure(megaBurgerOrderWorkflow::orderFood, order);
         } else {
-            throw new RuntimeException("Restaurant option not available");
+            throw new RuntimeException(
+                    String.format("%s invalid, Restaurant option not available", order.getRestaurant()));
         }
         // Wait for an ETA or abort if restaurant rejected order
         Workflow.await(() -> etaInMinutes != -1 || OrderStatus.REJECTED.equals(currentStatus));
@@ -33,8 +35,10 @@ public class OrderWorkflowImpl implements OrderWorkflow {
             // Wait for predicted ETA or until order marks as ready
             Workflow.await(Duration.ofMinutes(getTimeToSendCourier()), () -> OrderStatus.READY.equals(currentStatus));
 
-            CourierDeliveryWorkflow courierDeliveryWorkflow = Workflow.newChildWorkflowStub(CourierDeliveryWorkflow.class);
-            Async.procedure(courierDeliveryWorkflow::deliverOrder, new CourierDeliveryJob(order.getRestaurant(), order.getAddress(), order.getTelephone()));
+            CourierDeliveryWorkflow courierDeliveryWorkflow = Workflow
+                    .newChildWorkflowStub(CourierDeliveryWorkflow.class);
+            Async.procedure(courierDeliveryWorkflow::deliverOrder,
+                    new CourierDeliveryJob(order.getRestaurant(), order.getAddress(), order.getTelephone()));
 
             Workflow.await(() -> OrderStatus.COURIER_DELIVERED.equals(currentStatus));
         } else {

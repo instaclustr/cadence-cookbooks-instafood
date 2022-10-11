@@ -18,7 +18,7 @@ How to setup a simple Cadence application which implements child workflows on In
 - An account on Instaclustr’s managed service platform (sign up for a free trial using the
   following [signup link](https://console2.instaclustr.com/signup))
 - Basic Java 11 and Gradle installation
-- IntelliJ Community Edition (or any other IDE with Gradle support)
+- IntelliJ Community Edition, Visual Studio Code or any other IDE with Gradle support
 - Docker (optional: only needed to run Cadence command line client)
 
 ### What is Cadence?
@@ -37,7 +37,7 @@ Workflows evolve over time and child workflows may develop as a result of that e
 
 *Fig 1. Flow diagram for a child workflow process*
 
-What are the advantages of child workflows?
+### What are the advantages of child workflows?
 
 Child workflows have similar functionality to **activities**. An activity is a business-level function that implements application logic such as calling a service or transcoding a media file. 
 The parent workflow can monitor the child worflow and track its progress, and signals can be pass back and forth between the two with client SDK methods.
@@ -45,12 +45,12 @@ The parent workflow can monitor the child worflow and track its progress, and si
 Child workflows can be implemented by separate **worker processes**. A worker process is the process which is invoked to execute a particular workflow. 
 Separating out a set of activities into a child workflow allows you to ensure the code that gets executed the most often has the most resources by scaling those workers appropriately. 
 
-Another advantage of using child workflows is to work around the built in Cadence limits. There are limits for the number of activities a single workflow can execute. These limits exist due to the way the workflow state is persisted in the backend and they were developed to ensure the most efficient operation of a Cadence cluster.
-For workflows running a high number of activities, we can use child workflows to distribute the work, essentially removing the limit while also gaining the aformentioned scalability.
+Another advantage of using child workflows is to work around the built in Cadence limits. Cadence limits the number of activities that a single workflow can execute. The limits were developed to ensure the most efficient operation of a Cadence cluster.
+For workflows running a large number of activities, we can use child workflows to distribute the work, thereby removing the limit and also gaining the other advantages mentioned.
 
-When should I use a child workflow?
+### When should I use a child workflow?
 
-In many ways, the answer to this question is similar to "when should I extract this code into a function?". If you find your workflows calling the same set of activities it is a prime candidate to be invoked via child workflow.
+In many ways, the answer to this question is similar to "when should I extract this code into a function?". If you find your workflows calling the same set of activities, in the same order, it is a prime candidate to be invoked via child workflow.
 
 If your workflow is approaching the limit of activity invocations, using child workflows is required to avoid running into the limits previously mentioned.
 
@@ -102,9 +102,9 @@ MegaBurgers is a large multinational fast food hamburger chain. They have an exi
 
 *Fig 3. MegaBurger's order state machine*
 
-We are building Instafood to offer meals from any restaurant that signs up. Each company will have its own method to make orders and check on the progress, which makes it a perfect candidate to implement via a child workflow.
+We are designing Instafood to offer meals from any restaurant that signs up to our service. Each company will have its own method to take orders and monitor progress, which makes it a perfect candidate to implement via a child workflow.
 
-In the case of MegaBurger, this is done via a simple **if** statment which is made at the time of ordering.
+In the case of MegaBurger this is done via the following **if** statment, which is made at the time of ordering.
 
 ``` java
   if (Restaurant.MEGABURGER.equals(order.getRestaurant())) {
@@ -206,8 +206,9 @@ to get our Instafood application running we first need to register a domain for 
 
 Now that we have everything set up, lets look at the actual integration between Instafood and Megaburger, and how child workflows are used.
 
-First, lets look at the Instafood workflow. The main function is **orderFood**, which gets started when an order comes in:
-**Instafood workflow - implementation**
+First, lets look at the Instafood workflow. The main function is **orderFood**, which gets started when an order is placed:
+
+**Instafood workflow**
 ```java
   public void orderFood(FoodOrder order) {
         if (Restaurant.MEGABURGER.equals(order.getRestaurant())) {
@@ -236,14 +237,17 @@ First, lets look at the Instafood workflow. The main function is **orderFood**, 
     }
 ```
 
-We can see here, we currently only support the Megaburger restaurant, but there is scope to add more later! 
-As mentioned above, we invoke the child workflow by creating the **child workflow stub** and starting the **orderFood** workflow on it.
+We can see here, we currently only support the Megaburger restaurant, but there is scope to add more later!
 
-This particular workflow continues executing while the child workflow is progressing, and will block while it waits for a signal from the child workflow which indicates what the ETA for the order is, before it can progress to the next stage.
+As we mentioned earlier, we invoke the child workflow by creating the **child workflow stub** and starting the **orderFood** workflow on it.
 
-Later in the workflow definition, we can see that we call another child workflow that is responsible for dispatching a courier to deliver the order.
+This particular workflow continues executing while the child workflow is progressing, and then it will block while it waits for a signal from the child workflow. Once this message is received, it can progress to the next stage.
 
-As we saw here, communication between the parent and child workflow is possible via asynchronous messages. Let's look at how that is implemented in this workflow.
+Later in the workflow definition, we can see that we call another child workflow. This one is responsible for dispatching a courier to pickup the order from the restaurant and then deliver the order to the customer.
+
+As we have explained, communication between the parent and child workflow is possible via asynchronous messages. 
+
+Let's look at how that is implemented in this workflow.
 
 ```java
     // ...
@@ -253,8 +257,11 @@ As we saw here, communication between the parent and child workflow is possible 
 
     // ... 
 ```
-Here our workflow is waiting until the ETA is updated, so how is that happening?
-First, we can see in the **interface definition** for the parent workflow, it has defined the following method:
+Here our workflow is **polling** until the order ETA is updated, so how is that happening? 
+
+(For more details on polling in cadence workflows, have a read of our [polling cookbook](https://github.com/instaclustr/cadence-cookbooks-instafood/blob/main/cookbooks/polling/polling-megafood.md))
+
+Lets look at our parent workflow and its **interface definition**, where it has defined the following method:
 
 **Instafood workflow - interface**
 ```java
@@ -278,11 +285,12 @@ The **@SignalMethod** annotation decorates the method and informs Cadence that t
   // ...
 ```
 Let's break this down a bit:
-1. First, we create a stub to our parent workflow. We do this by calling the Cadence SDK to get the Id of the parent workflow, then create the stub for it.
-2. Now that we have the stub, we get access to the methods in it. We call **updateEta** and provide the ETA, which gets sent asynchronously.
-3. The workflow continues as the order is being prepared.
+1. First, we create a stub to our parent workflow. We do this by calling the Cadence SDK to get the ID of the parent workflow, the create the stub for it.
+2. Now that we have the stub, we gain access to the methods on it. We call **updateEta** and provide the ETA, which gets sent asynchronously.
+3. This child workflow continues as the order is being prepared.
+4. Our parent workflow receives the signal, and then it can also progress.
 
-## Instafood child workflow reflection
+### Reflection - Instafood and child workflows
 
 Above is a good example of how to use child workflows, and it's also a great example of **why** you want to use them.
 
@@ -291,54 +299,14 @@ The parent workflow can keep working until this information is ready.
 This is cruicial for a workflow such as this, where we want to inform the customer of an ETA or dispatch a courier, but it doesn't make sense for the restaurant preparation workflow to have this responsibility.
 
 Similarly, the primary workflow doesn't concern itself with how each restaurant implements the various requirements for updating ETA and status. This makes the workflow simple to implement and easy to understand.
-### Running a Happy-Path Scenario
+## Running a Happy-Path Scenario
 
-To wrap-up, let’s run a whole order scenario. This scenario is part of the test suite included with our sample project. The only requirement is running both Instafood and MegaBurger server as described in the previous steps. This test case describes a client ordering through Instafood MegaBurger’s new *Vegan Burger* for pick-up:
+To wrap-up, let’s run a whole order scenario. We are going to use the **cadence cli** to demonstrate how it can be used to start workflows. 
 
-Let's start by running the server. This can be accomplished by running
-  ```bash
-  cadence-cookbooks-instafood/instafood$ ./gradlew test
-  ```
+The only requirement is running both Instafood and MegaBurger server as described in the previous steps.
 
-or *InstafoodApplicationTest* from your IDE
 
-```java
-class InstafoodApplicationTest {
 
-    // ...
-
-    @Test
-    public void givenAnOrderItShouldBeSentToMegaBurgerAndBeDeliveredAccordingly() {
-        FoodOrder order = new FoodOrder(Restaurant.MEGABURGER, "Vegan Burger", 2, "+54 11 2343-2324", "Díaz velez 433, La lucila", true);
-
-        // Client orders food
-        WorkflowExecution workflowExecution = WorkflowClient.start(orderWorkflow::orderFood, order);
-
-        // Wait until order is pending Megaburger's acceptance
-        await().until(() -> OrderStatus.PENDING.equals(orderWorkflow.getStatus()));
-
-        // Megaburger accepts order and sends ETA
-        megaBurgerOrdersApiClient.updateStatusAndEta(getLastOrderId(), "ACCEPTED", 15);
-        await().until(() -> OrderStatus.ACCEPTED.equals(orderWorkflow.getStatus()));
-
-        // Megaburger starts cooking order
-        megaBurgerOrdersApiClient.updateStatus(getLastOrderId(), "COOKING");
-        await().until(() -> OrderStatus.COOKING.equals(orderWorkflow.getStatus()));
-
-        // Megaburger signals order is ready
-        megaBurgerOrdersApiClient.updateStatus(getLastOrderId(), "READY");
-        await().until(() -> OrderStatus.READY.equals(orderWorkflow.getStatus()));
-
-        // Megaburger signals order has been picked-up
-        megaBurgerOrdersApiClient.updateStatus(getLastOrderId(), "RESTAURANT_DELIVERED");
-        await().until(() -> OrderStatus.RESTAURANT_DELIVERED.equals(orderWorkflow.getStatus()));
-
-        await().until(() -> workflowHistoryHasEvent(workflowClient, workflowExecution, EventType.WorkflowExecutionCompleted));
-    }
-}
-```
-
-We have 3 actors in this scenario: Instafood, MegaBurger and the Client.
 
 1. The Client sends order to Instafood.
 2. Once the order reaches MegaBurger (order status is `PENDING`), MegaBurgers marks it as `ACCEPTED` and sends an ETA.
