@@ -25,7 +25,7 @@ How to setup a simple Cadence application which implements child workflows on In
 
 A large number of use cases span beyond a single request-reply, require tracking of a complex state, respond to asynchronous events, and communicate to external unreliable dependencies. The usual approach to building such applications is a hodgepodge of stateless services, databases, cron jobs, and queuing systems. This negatively impacts developer productivity as most of the code is dedicated to plumbing, obscuring the actual business logic behind a myriad of low-level details.
 
-Cadence is an orchestration framework that helps developers write fault-tolerant, long-running applications, also known as workflows. In essence, it provides a durable virtual memory that is not linked to a specific process, and preserves the full application state, including function stacks, with local variables across all sorts of host and software failures. This allows you to write code using the full power of a programming language while Cadence takes care of durability, availability, and scalability of the application.
+Cadence is an orchestration framework that helps developers write fault-tolerant, long-running applications, also known as workflows. In essence, it provides a durable virtual memory that is not linked to a specific process or host, and is able to rebuild application state by replaying individual steps. This includes function stacks, with local variables across all sorts of host and software failures. This allows you to write code using the full power of a programming language while Cadence takes care of durability, availability, and scalability of the application.
 
 ### What are child workflows?
 
@@ -39,8 +39,11 @@ Workflows evolve over time and child workflows may develop as a result of that e
 
 ### What are the advantages of child workflows?
 
-Child workflows have similar functionality to **activities**. An activity is a business-level function that implements application logic such as calling a service or transcoding a media file. 
-The parent workflow can monitor the child worflow and track its progress, and signals can be pass back and forth between the two with client SDK methods.
+Child workflows have similar functionality to **activities**. In order to fulfill deterministic execution requirements, workflows are not allowed to call any external API directly. Instead they orchestrate execution of activities. An activity is business-level function that implements application logic such as calling a service or transcoding a media file.
+
+Like activities, child workflows are failure agnostic from the perspective of the parent workflow. 
+
+When invoking child workflows, parent workflows are able to monitor the child worflow and track its progress, and signals can be passed back and forth between the two with client SDK methods.
 
 Child workflows can be implemented by separate **worker processes**. A worker process is the process which is invoked to execute a particular workflow. 
 Separating out a set of activities into a child workflow allows you to ensure the code that gets executed the most often has the most resources by scaling those workers appropriately. 
@@ -61,7 +64,7 @@ Finally, child workflows are a great way to set boundaries between areas of func
 The code to invoke a child workflow is almost identical to invoking a regular workflow:
 ```java
     // We first create a stub for the child workflow and include a set of options
-    SubWorkflow child = Workflow.newChildWorkflowStub(SubWorkflow.class, options);
+    MyCustomChildWorkflow child = Workflow.newChildWorkflowStub(MyCustomChildWorkflow.class, options);
 
     // Asynchronous
     // Then we call the function to start it 
@@ -84,7 +87,7 @@ The workflow stub has the methods to start the workflow, and they can be invoked
 
 Since workflows are the main building blocks of Cadence, there are very few limitations to child workflows. 
 
-owever one to be aware of is that there is no shared state between the parent and child workflows. Asynchronous communication can be built between the workflow instances, but if there is constant communication of state going back and forth, its probably a better candidate for a single workflow..
+However one to be aware of is that there is no shared state between the parent and child workflows. Asynchronous communication can be built between the workflow instances, but if there is constant communication of state going back and forth, its probably a better candidate for a single workflow..
 
 ## Use Case Example: Instafood meets MegaBurgers
 
@@ -112,7 +115,7 @@ In the case of MegaBurger this is done via the following **if** statment, which 
       Async.procedure(megaBurgerOrderWorkflow::orderFood, order);
   }
 ```
-The above example shows how simple this makes the parent workflow, it doesn't have to know about the various peculiarities of each company's order process, thats the job of the child workflow to implement.
+The above example shows how simple this makes the parent workflow, it doesn't have to know about the various peculiarities of each company's order process. That's the job of the child workflow to implement.
 
 ## Setting up Instafood Project
 
@@ -301,11 +304,52 @@ This is cruicial for a workflow such as this, where we want to inform the custom
 Similarly, the primary workflow doesn't concern itself with how each restaurant implements the various requirements for updating ETA and status. This makes the workflow simple to implement and easy to understand.
 ## Running a Happy-Path Scenario
 
-To wrap-up, let’s run a whole order scenario. We are going to use the **cadence cli** to demonstrate how it can be used to start workflows. 
+To wrap-up, let’s run a whole order scenario. This scenario is part of the test suite included with our sample project. The only requirement is running both Instafood and MegaBurger server as described in the previous steps. This test case describes a client ordering through Instafood MegaBurger’s new *Vegan Burger* for pick-up:
 
-The only requirement is running both Instafood and MegaBurger server as described in the previous steps.
+Let's start by running the server. This can be accomplished by running
+  ```bash
+  cadence-cookbooks-instafood/instafood$ ./gradlew test
+  ```
 
+or *InstafoodApplicationTest* from your IDE
 
+```java
+class InstafoodApplicationTest {
+
+    // ...
+
+    @Test
+    public void givenAnOrderItShouldBeSentToMegaBurgerAndBeDeliveredAccordingly() {
+        FoodOrder order = new FoodOrder(Restaurant.MEGABURGER, "Vegan Burger", 2, "+54 11 2343-2324", "Díaz velez 433, La lucila", true);
+
+        // Client orders food
+        WorkflowExecution workflowExecution = WorkflowClient.start(orderWorkflow::orderFood, order);
+
+        // Wait until order is pending Megaburger's acceptance
+        await().until(() -> OrderStatus.PENDING.equals(orderWorkflow.getStatus()));
+
+        // Megaburger accepts order and sends ETA
+        megaBurgerOrdersApiClient.updateStatusAndEta(getLastOrderId(), "ACCEPTED", 15);
+        await().until(() -> OrderStatus.ACCEPTED.equals(orderWorkflow.getStatus()));
+
+        // Megaburger starts cooking order
+        megaBurgerOrdersApiClient.updateStatus(getLastOrderId(), "COOKING");
+        await().until(() -> OrderStatus.COOKING.equals(orderWorkflow.getStatus()));
+
+        // Megaburger signals order is ready
+        megaBurgerOrdersApiClient.updateStatus(getLastOrderId(), "READY");
+        await().until(() -> OrderStatus.READY.equals(orderWorkflow.getStatus()));
+
+        // Megaburger signals order has been picked-up
+        megaBurgerOrdersApiClient.updateStatus(getLastOrderId(), "RESTAURANT_DELIVERED");
+        await().until(() -> OrderStatus.RESTAURANT_DELIVERED.equals(orderWorkflow.getStatus()));
+
+        await().until(() -> workflowHistoryHasEvent(workflowClient, workflowExecution, EventType.WorkflowExecutionCompleted));
+    }
+}
+```
+
+We have 3 actors in this scenario: Instafood, MegaBurger and the Client.
 
 
 1. The Client sends order to Instafood.
