@@ -33,7 +33,7 @@ Cadence's core abstraction is a fault-oblivious stateful **workflow**. A workflo
 
 Workflows evolve over time and child workflows may develop as a result of that evolutuion, such as when two existing workflow processes are joined, or designed from the start to take advantage the features available in Cadence.
 
-![Child workflow diagram](images/TBA.png)
+![Child workflow diagram](images/cookbook_child_workflow.png)
 
 *Fig 1. Flow diagram for a child workflow process*
 
