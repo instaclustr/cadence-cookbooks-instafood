@@ -14,8 +14,10 @@ Instafood is an online app-based meals delivery service. Customers can place an 
 
 ### Cadence Cookbooks
 
-- [Polling External Services](https://github.com/instaclustr/cadence-cookbooks-instafood/blob/main/cookbooks/polling/polling-megafood.md) - (Cookbook Authors: [Adam Zegelin](https://github.com/zegelin) and [Ivan Pondal](https://github.com/ivanpondal) with contributions from [John Del Castillo](https://github.com/johndelcastillo) and [Paul Brebner](https://github.com/paul-brebner)).
-- Watch out for the next one!
+- [Polling External Services](https://github.com/instaclustr/cadence-cookbooks-instafood/blob/main/cookbooks/polling/polling-megafood.md) .
+- [Child workflows](https://github.com/instaclustr/cadence-cookbooks-instafood/blob/main/cookbooks/child-workflows/child-workflows-megafood.md) 
+
+Cookbook Authors: [Adam Zegelin](https://github.com/zegelin) and [Ivan Pondal](https://github.com/ivanpondal) with contributions from [John Del Castillo](https://github.com/johndelcastillo) and [Paul Brebner](https://github.com/paul-brebner)
 
 ## Further Information
-- Please see the [Instaclustr support status](https://www.instaclustr.com/support/documentation/announcements/instaclustr-open-source-project-status) of this project
+- Please see the [Instaclustr support status](https://www.instaclustr.com/support/documentation/announcements/instaclustr-open-source-project-status) of this project.
