@@ -103,7 +103,7 @@ MegaBurgers is a large multinational fast food hamburger chain. They have an exi
 
 ![MegaBurger's order status](images/Diagram_3.png)
 
-*Fig 3. MegaBurger's order state machine*
+*Fig 2. MegaBurger's order state machine*
 
 We are designing Instafood to offer meals from any restaurant that signs up to our service. Each company will have its own method to take orders and monitor progress, which makes it a perfect candidate to implement via a child workflow.
 
