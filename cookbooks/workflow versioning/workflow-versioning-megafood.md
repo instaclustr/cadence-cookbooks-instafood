@@ -35,44 +35,70 @@ Over time, it will become neccesary to modify the workflow, or activity code, wh
 
 How do we introduce changes that both satisfy our new requirements and do not introduce non-deterministic changes for workflows that are currently executing?
 
-Cadence supports this with the **versioning api**. 
+Cadence supports this with the **versioning api**.
 
 ### Cadence's state recovery and determinisim requirement
 
-The most powerful feature that Cadence offers is fault tolerant workflow execution. In order to deliver that feature, Cadence must be able to recover a workflow that has failed mid-execution, and continue execution as if no problem has occured.
+Before we can understand how versioning is implemented, we must first understand the most powerful feature that Cadence offers: **fault tolerant workflow execution**.
 
-So how does Cadence do this? With a combination of re-executing workflow code and persisting activity results.
+In order to deliver that functionality, Cadence must be able to recover a workflow process that has failed mid-execution, and continue execution as if no problem has occured.
+
+So how does it do this? With a combination of re-executing workflow code and persisting the result of activity calls.
 
 Lets consider a simple example workflow with 3 activity calls.
 
 ```java
-    Result r1 = activity.Step1();
+    Result1 r1 = activity.step1();
+    r1.field = r1.field + 1;
 
-    Result r2 = activity.Step2(r1);
+    Result2 r2 = activity.step2(r1);
+    r2.field = r2.field - 1;
 
-    Result r3 = activity.Step3(r2);
+    // possible crash here!
+
+    Result3 r3 = activity.step3(r2);
 
     return r3;
 ```
 
 Now lets imagine our workflow code is being executed, and the worker process crashes after step 2 completes but before step 3 executes.
 
-When a new workflow worker comes online, it will execute the workflow starting at step 1. When encountering a call to an activity, Cadence will first check to see if there is an event and result in the history table, and if there is, will instantly return that result to the workflow worker.
+When a new Cadence worker comes online, it will execute the workflow from the start. When encountering a call to an activity, Cadence first checks to see if there is an event and result in the history table, and if there is, will instantly return that result to the workflow worker.
 
-If we return to our example, the workflow will immediately return to step 3, having restored the history in the workflow and continue execution.
+If we return to our example, the workflow will immediately progress to step 3, having restored the history in the workflow, and continue execution.
 
 ### Why do we need deterministic code?
 
-In our previous example, imagine what would happen if our recovering workflow code did not execute the activities in the same order as they did the first time. 
+In our previous example, imagine what would happen if our recovering workflow code did not execute the activities in the same order as they did the first time.
 
-If our workflow code was not deterministic, instead of executing activities 1-2-3, we might have some code that optionally calls activity 3 before activity 2, 1-3-2.
+```java
+    Result1 r1 = activity.step1();
+    r1.field = r1.field + 1;
 
-How can Cadence recover a workflow which may execute activities in different order? Short answer, it can't.
-If our non-deterministic workflow were to fail and a worker started to recover it, when Cadence encounters a call to an activity that isn't in the history it will throw an exception.
+    Result2 r2 = null;
+    boolean skipStep2 = random.nextInt(10) < 5;
+   
+    if (!skipStep2) {
+      r2 = activity.step2(r1);
+      r2.field = r2.field - 1;
+    }
 
-## Workflow versioning deep dive
+    // possible crash here!
 
-So now we understand how Cadence persists activity results, and how it can use the event history to recover a failed worker process. 
+    Result3 r3 = activity.step3(r2);
+
+    return r3;
+```
+
+If our workflow code was not deterministic, instead of executing activities *1-2-3*, we might have some code that calls activity 3 without calling activity 2, *1-3*, and this would change the value of the parameter being passed.
+
+How can Cadence recover a workflow which may execute activities in different order or calculate different values every iteration? Short answer, it can't.
+
+If our non-deterministic workflow were to fail and a worker started to recover it, when Cadence encounters a call to an activity that isn't in the history it would throw an exception.
+
+## Workflow versioning explained
+
+So now we understand how Cadence persists activity results, and how it can use the event history to recover a failed worker process.
 We also understand that our workflow code must be deterministic, otherwise the workflow is not reliably recoverable.
 
 This leaves us with a problem, what do we do when we **need** to update our workflow code with changes that will make *existing* workflows behave non-deterministically?
@@ -83,79 +109,130 @@ Thankfully, Cadence has support for this.
 
 Lets update our example workflow in response to a new requirement:
 
-1. Something starts
-2. Updated activity requirement
-~~2. Long running, expensive api call~~
-3. Take the result and return it
+```diff
+    Result1 r1 = activity.step1();
+    r1.field = r1.field + 1;
 
-We have replaced step 2 with an updated activity call and we want to deploy it, but if we have active workflows it will not be possible for them to recover with the newly updated workflow.
+-   Result2 r2 = activity.step2(r1);
++   Result2 r2 = activity.updatedStep2(r1);
+    r2.field = r2.field - 1;
 
-With the Cadence SDK, we can introduce branching logic using the *workflow.getVersion()* procedure call.
+    Result3 r3 = activity.step3(r2);
 
-1. Something starts
-version = workflow.getVersion("addedThing", Workflow.DEFAULT_VERSION, 1)
-if (version == Workflow.DEFAULT_VERSION) {
-  2. Updated activity requirement
-} else
-{
-  2. Long running, expensive api call
-}
-3. Take the result and return it
+    return r3;
+```
 
-#### Workflow.getVersion explainer
+We have replaced step 2 with an updated activity call and we want to deploy it, but active workflows will not be able replay history with the newly updated workflow. When Cadence encounters the new activity call, it will throw an exception.
 
-Our new workflow code uses *workflow.getVersion* to decide where it should execute the old or new code paths. How does this work for workflows that started executing before the version check was implemented?
+With the Cadence SDK, we can introduce branching logic using the *workflow.getVersion* procedure call.
+
+```java
+    Result1 r1 = activity.step1();
+    r1.field = r1.field + 1;
+
+    Result r2 = null;
+    int version = Workflow.getVersion("step2Updated", Workflow.DEFAULT_VERSION, 1);
+
+    if (version == Workflow.DEFAULT_VERSION) {
+      // previous code path
+      r2 = activity.step2(r1);
+      r2.field = r2.field - 1;
+    }
+    else {
+      // new code path
+      r2 = activity.alternateStep2(r1);
+    }
+    
+    Result3 r3 = activity.step3(r2);
+
+    return r3;
+```
+
+Our new workflow code uses *workflow.getVersion* to determine the version of the "step2Updated" feature. Then we can decide if it should execute the old or new code paths.
+
+How does this work for workflows that started executing before the version check was implemented?
 
 First, lets break down the 3 parameters in this call:
-1. the "marker" name, a unique identifier that represents the change made
-2. *minSupported* the lowest version supported by this workflow. In our example, Workflow.DEFAULT_VERSION
+
+1. the *changeId*, a unique identifier that represents the change made.
+2. *minSupported* the lowest version supported by this workflow. In our example, *Workflow.DEFAULT_VERSION*.
 3. *maxSupported* the highest version supported. In our example, 1.
 
-When a workflow encounters this call, it will check the version history for an event with the "marker" name and then makes the following decisions.
-* If we are replaying history, due to a worker recovery or replay command, and there is no version event recorded -  Record the *minSupported* value and return it
-* If this there is no remaining history to replay and there is no version event recorded -  Record the *maxSupported* value and return it
-* If there is an existing entry in the history, return the recorded value.
+When a workflow encounters this call, it will check the version history for the *changeId* and then evaluates the following scenarios:
+
+1. If we are replaying history, due to a worker recovery, and we encounter *workflow.getVersion* for the first time - Record the *minSupported* value and return it.
+
+    - Cadence has correctly identified that a new version has been introduced, and our inflight workflow execution didn't originally support it, so it returns the minimal value.
+
+2. If we are executing this new workflow for the first time - Record the *maxSupported* value and return it.
+
+    - New instances of a workflow will always return the highest available value for *workflow.getVersion* calls.
+
+3. If there is an existing entry in the history, return the recorded value.
+
+    - Additional version updates will not impact in-flight workflows, the version they recorded the first time will always be the same.
 
 #### Making additional changes
+
 *workflow.getVersion* can support multiple updates. We can increase the *maxSupported* value when we add additional changes and introduce even more branching paths to our workflow code.
+
+```java
+    Result1 r1 = activity.step1();
+    r1.field = r1.field + 1;
+
+    Result r2 = null;
+    int version = Workflow.getVersion("step2Updated", Workflow.DEFAULT_VERSION, 2);
+
+    if (version == Workflow.DEFAULT_VERSION) {
+      // initial code path
+      r2 = activity.step2(r1);
+      r2.field = r2.field - 1;
+    }
+    else if (version == 1) {
+      // second version code path
+      r2 = activity.alternateStep2(r1);
+    }
+    else {
+      // newest code path
+      r2 = activity.secondAlternateStep2(r1);
+    }
+    
+    Result3 r3 = activity.step3(r2);
+
+    return r3;
+```
 
 Eventually, all the workflows running the old logic will complete, and we can consider them no long supported. In this case we can update the *minSupported* value, and then we can remove the workflow branch that supported that version.
 
-Phew! Our workflow has been updated, and it remains deterministic. The first time we encounter a version check, its value is persisted, so if we ever replay the history, the value will always remain the same and we can build our workflow code around that guarantee.
-
-### Invoking a child workflow
-
-The code to invoke a child workflow is almost identical to invoking a regular workflow:
 ```java
-    // We first create a stub for the child workflow and include a set of options
-    MyCustomChildWorkflow child = Workflow.newChildWorkflowStub(MyCustomChildWorkflow.class, options);
+    Result1 r1 = activity.step1();
+    r1.field = r1.field + 1;
 
-    // Asynchronous
-    // Then we call the function to start it 
-    // This is a non blocking call that returns immediately.
-    Promise<String> result = Async.function(child::doWork);
+    Result r2 = null;
+    int version = Workflow.getVersion("step2Updated", 1, 2);
 
-    // Or synchronous
-    // Block until the child workflow completes
-    child.doWork();
+    if (version == 1) {
+      // second version code path
+      r2 = activity.alternateStep2(r1);
+    }
+    else {
+      // newest code path
+      r2 = activity.secondAlternateStep2(r1);
+    }
+    
+    Result3 r3 = activity.step3(r2);
+
+    return r3;
 ```
 
-We start by creating a **child workflow stub**. When we create this stub we can optionally pass it some **child workflow options**, which allow you to change the rules of how this child workflow executes compared to its parent.
-Some of the options we can change are the domain, tasklist, timeout settings, retry settings and more. If we choose to omit this value, the child workflow will inherit all of these settings from its parent.
+#### Conclusion
 
-The workflow stub has the methods to start the workflow, and they can be invoked in two ways:
-1. Asynchronously - This returns a promise object, a *Future* which will be used to store the result of the child workflow after it has completed. After making this call, the workflow code will continue and the child workflow will execute in parallel.
-2. Synchronously - This will block like a regular function call and is invoked as such. The parent workflow won't continue until the child workflow has completed.
-
-### Child workflow limitations
-
-Since workflows are the main building blocks of Cadence, there are very few limitations to child workflows. 
-
-However one to be aware of is that there is no shared state between the parent and child workflows. Asynchronous communication can be built between the workflow instances, but if there is constant communication of state going back and forth, its probably a better candidate for a single workflow..
+Phew! Our workflow has been updated, and it remains deterministic. The first time we encounter any version check, the returned value is persisted.
+If we ever replay the history, the value will always remain the same and we can build our workflow code around that guarantee.
 
 ## Use Case Example: Instafood meets MegaBurgers
 
-In order to see this pattern in action, we'll create some child workflows in our sample project.
+In order to see workflow versioning in action, we'll be updating our Instafood workflow with new functionality.
 
 ### Instafood Brief
 
