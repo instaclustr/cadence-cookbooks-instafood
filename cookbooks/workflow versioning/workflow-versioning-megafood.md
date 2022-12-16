@@ -51,21 +51,24 @@ Lets consider a simple example workflow with 3 activity calls.
     Result1 r1 = activity.step1();
     r1.field = r1.field + 1;
 
+    // possible crash here!
+
     Result2 r2 = activity.step2(r1);
     r2.field = r2.field - 1;
-
-    // possible crash here!
 
     Result3 r3 = activity.step3(r2);
 
     return r3;
 ```
 
-Now lets imagine our workflow code is being executed, and the worker process crashes after step 2 completes but before step 3 executes.
+Now lets imagine our workflow code is being executed, and the worker process crashes after step 1 completes, but before step 2 executes.
 
 When a new Cadence worker comes online, it will execute the workflow from the start. When encountering a call to an activity, Cadence first checks to see if there is an event and result in the history table, and if there is, will instantly return that result to the workflow worker.
 
-If we return to our example, the workflow will immediately progress to step 3, having restored the history in the workflow, and continue execution.
+If we return to our example, the workflow will immediately progress to step 2, having restored the history in the workflow, and continue execution.
+
+![Cadence History Recovery](images/workflow-history.gif)
+
 
 ### Why do we need deterministic code?
 
