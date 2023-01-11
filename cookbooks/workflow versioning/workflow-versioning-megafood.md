@@ -230,33 +230,35 @@ Eventually, all the workflows running the old logic will complete, and we can co
 Phew! Our workflow has been updated, and it remains deterministic. The first time we encounter any version check, the returned value is persisted.
 If we ever replay the history, the value will always remain the same and we can build our workflow code around that guarantee.
 
-## Use Case Example: Instafood meets MegaBurgers
-
-In order to see workflow versioning in action, we'll be updating our Instafood workflow with new functionality.
-
 ### Instafood Brief
 
 Instafood is an online app-based meal delivery service. Customers can place an order for food from their favorite local restaurants via Instafood’s mobile app. Orders can be for pickup or delivery. If delivery is chosen, Instafood will organize to have one of their many delivery drivers pickup the order from the restaurant and deliver it to the customer. Instafood provides each restaurant a kiosk/tablet which is used for communication between Instafood and the restaurant. Instafood notifies the restaurant when an order is placed, and then the restaurant can accept the order, provide an ETA, mark it as ready, etc. For delivery orders, Instafood will coordinate to have a delivery driver pick up based on the ETA.
 
-### Ordering from "MegaBurgers"
+## Use Case Example: Instafood courier integration
 
-MegaBurgers is a large multinational fast food hamburger chain. They have an existing mobile app and website that uses a back-end REST API for customers to place orders. Instafood’s backend will directly integrate with MegaBurgers’s existing REST-based ordering system to place orders and receive updates.
+In order to see workflow versioning in action, we'll be updating our Instafood workflow with new functionality.
 
-![MegaBurger's order status](images/Diagram_3.png)
+Our Instafood application dispatches couriers when the customer selects home delivery for their order. For the last few months, customers have been requesting GPS tracking for their couriers to achieve feature parity with our competitors.
 
-*Fig 2. MegaBurger's order state machine*
-
-We are designing Instafood to offer meals from any restaurant that signs up to our service. Each company will have its own method to take orders and monitor progress, which makes it a perfect candidate to implement via a child workflow.
-
-In the case of MegaBurger this is done via the following **if** statment, which is made at the time of ordering.
+The team responsible for courier integration has been working hard and has finally delivered GPS tracking! It's being offered as an API that accepts the restaurant and delivery address as parameters to register the trip. Once registered, the GPS tracking is delivered by a separate process outside the scope of this article.
 
 ``` java
-  if (Restaurant.MEGABURGER.equals(order.getRestaurant())) {
-      MegaBurgerOrderWorkflow megaBurgerOrderWorkflow = Workflow.newChildWorkflowStub(MegaBurgerOrderWorkflow.class);
-      Async.procedure(megaBurgerOrderWorkflow::orderFood, order);
+  boolean registerDeliveryGPSTracking(String pickupLocation, String deliveryLocation);
+```
+
+Now we can integrate it into our *CourerDeliveryWorkflow*, but we can't just add the functionality and deploy the new workflow for all the reasons we just learnt. Any existing workflow that is recovered or has its history replayed will fail.
+
+So, we will use the versioning API to add a version check for our new feature into *CourerDeliveryWorkflow*
+
+``` java
+  // Added new GPS tracking functionality
+  int workflowVersion = Workflow.getVersion("GPSTrackingSupported", Workflow.DEFAULT_VERSION, 1);
+  if (workflowVersion >= 1) {
+      courierGPSActivities.registerDeliveryGPSTracking(courierDeliveryJob.getRestaurant().toString(), courierDeliveryJob.getAddress());
   }
 ```
-The above example shows how simple this makes the parent workflow, it doesn't have to know about the various peculiarities of each company's order process. That's the job of the child workflow to implement.
+
+New workflow instances will be able to register for GPS tracking and the customer will receive updates, and existing workflows will skip over this new functionality if they are being replayed.
 
 ## Setting up Instafood Project
 
@@ -282,27 +284,29 @@ to get our Instafood application running we first need to register a domain for 
 
 1. In order to interact with our Cadence cluster, we need to install its command line interface client.
 
-   #### macOS
-   If using a macOS client the Cadence CLI can be installed with Homebrew as follows:
-    ```bash
-    brew install cadence-workflow
-    # run command line client
-    cadence <command> <arguments>
-    ```
+  **macOS**
 
-   #### Other Systems
-   If not, the CLI can be used via Docker Hub image `ubercadence/cli`:
-    ```bash
-    # run command line client
-    docker run --network=host --rm ubercadence/cli:master <command> <arguments>
-    ```
+  If using a macOS client the Cadence CLI can be installed with Homebrew as follows:
 
-   For the rest of the steps we'll use `cadence` to refer to the client.
+  ```bash
+  brew install cadence-workflow
+  # run command line client
+  cadence <command> <arguments>
+  ```
+
+  **Other Systems**
+
+  If not, the CLI can be used via Docker Hub image `ubercadence/cli`:
+
+  ```bash
+  # run command line client
+  docker run --network=host --rm ubercadence/cli:master <command> <arguments>
+  ```
+
+  For the rest of the steps we'll use `cadence` to refer to the client.
 
 2. In order to connect, it is recommended to use the load balancer address to connect to your cluster. This can be found at the top of the
    *Connection Info* tab, and will look like this: "ab-cd12ef23-45gh-4baf-ad99-df4xy-azba45bc0c8da111.elb.us-east-1.amazonaws.com". We'll call this the <cadence_host>.
-
-
 
 3. We can now test our connection by listing current domains:
 
@@ -327,127 +331,38 @@ to get our Instafood application running we first need to register a domain for 
 1. Clone Gradle project
    from [Instafood project git repository](https://github.com/instaclustr/cadence-cookbooks-instafood).
 
-2. Open property file at `instafood/src/main/resources/instafood.properties` and replace `cadenceHost` value with your
-   load balancer address:
+2. Open property file at `instafood/src/main/resources/instafood.properties` and replace `cadenceHost` value with your load balancer address:
 
-   ```properties
-   cadenceHost=<cadence_host>
-   ```
+    ```properties
+    cadenceHost=<cadence_host>
+    ```
 
-3. You can now run the app by  
-   ```bash
-   cadence-cookbooks-instafood/instafood$ ./gradlew run
-   ```
-   or executing *InstafoodApplication* main class from your IDE:
+3. Run the megaburgers API:
 
-   ![Running Instafood app](images/run_instafood.png)
+    ```bash
+    cadence-cookbooks-instafood/megaburgers$ ./gradlew run
+    ```
 
-4. Check it is running by looking into its terminal output:
+4. You can now run the app by  
+
+    ```bash
+    cadence-cookbooks-instafood/instafood$ ./gradlew run
+    ```
+
+    or executing *InstafoodApplication* main class from your IDE:
+
+    ![Running Instafood app](images/run_instafood.png)
+
+5. Check it is running by looking into its terminal output:
 
    ![Instafood running terminal output](images/instafood_app_running.png)
 
-## Instafood order workflow review
-
-Now that we have everything set up, lets look at the actual integration between Instafood and Megaburger, and how child workflows are used.
-
-First, lets look at the Instafood workflow. The main function is **orderFood**, which gets started when an order is placed:
-
-**Instafood workflow**
-```java
-  public void orderFood(FoodOrder order) {
-        if (Restaurant.MEGABURGER.equals(order.getRestaurant())) {
-            MegaBurgerOrderWorkflow megaBurgerOrderWorkflow = Workflow.newChildWorkflowStub(MegaBurgerOrderWorkflow.class);
-            Async.procedure(megaBurgerOrderWorkflow::orderFood, order);
-        } else {
-            throw new RuntimeException("Restaurant option not available");
-        }
-        // Wait for an ETA or abort if restaurant rejected order
-        Workflow.await(() -> etaInMinutes != -1 || OrderStatus.REJECTED.equals(currentStatus));
-        if (OrderStatus.REJECTED.equals(currentStatus)) {
-            throw new RuntimeException("Order was rejected by restaurant");
-        }
-
-        if (!order.isPickup()) {
-            // Wait for predicted ETA or until order marks as ready
-            Workflow.await(Duration.ofMinutes(getTimeToSendCourier()), () -> OrderStatus.READY.equals(currentStatus));
-
-            CourierDeliveryWorkflow courierDeliveryWorkflow = Workflow.newChildWorkflowStub(CourierDeliveryWorkflow.class);
-            Async.procedure(courierDeliveryWorkflow::deliverOrder, new CourierDeliveryJob(order.getRestaurant(), order.getAddress(), order.getTelephone()));
-
-            Workflow.await(() -> OrderStatus.COURIER_DELIVERED.equals(currentStatus));
-        } else {
-            Workflow.await(() -> OrderStatus.RESTAURANT_DELIVERED.equals(currentStatus));
-        }
-    }
-```
-
-We can see here, we currently only support the Megaburger restaurant, but there is scope to add more later!
-
-As we mentioned earlier, we invoke the child workflow by creating the **child workflow stub** and starting the **orderFood** workflow on it.
-
-This particular workflow continues executing while the child workflow is progressing, and then it will block while it waits for a signal from the child workflow. Once this message is received, it can progress to the next stage.
-
-Later in the workflow definition, we can see that we call another child workflow. This one is responsible for dispatching a courier to pickup the order from the restaurant and then deliver the order to the customer.
-
-As we have explained, communication between the parent and child workflow is possible via asynchronous messages. 
-
-Let's look at how that is implemented in this workflow.
-
-```java
-    // ...
-
-    // Wait for an ETA or abort if restaurant rejected order
-    Workflow.await(() -> etaInMinutes != -1 || OrderStatus.REJECTED.equals(currentStatus));
-
-    // ... 
-```
-Here our workflow is **polling** until the order ETA is updated, so how is that happening? 
-
-(For more details on polling in cadence workflows, have a read of our [polling cookbook](https://github.com/instaclustr/cadence-cookbooks-instafood/blob/main/cookbooks/polling/polling-megafood.md))
-
-Lets look at our parent workflow and its **interface definition**, where it has defined the following method:
-
-**Instafood workflow - interface**
-```java
-  @SignalMethod
-  void updateEta(int estimationInMinutes);
-```
-The **@SignalMethod** annotation decorates the method and informs Cadence that this method is used to receive signals from an external process, in this case it's coming from the child workflow, which we can see here:
-
-**Megaburgers workflow - Child workflow**
-```java
-  private OrderWorkflow getParentOrderWorkflow() {
-      String parentOrderWorkflowId = Workflow.getWorkflowInfo().getParentWorkflowId();
-      return Workflow.newExternalWorkflowStub(OrderWorkflow.class, parentOrderWorkflowId);
-  }
-    
-  OrderWorkflow parentOrderWorkflow = getParentOrderWorkflow();
-
-  // Send ETA to parent workflow
-  parentOrderWorkflow.updateEta(getOrderEta(orderId));
-
-  // ...
-```
-Let's break this down a bit:
-1. First, we create a stub to our parent workflow. We do this by calling the Cadence SDK to get the ID of the parent workflow, the create the stub for it.
-2. Now that we have the stub, we gain access to the methods on it. We call **updateEta** and provide the ETA, which gets sent asynchronously.
-3. This child workflow continues as the order is being prepared.
-4. Our parent workflow receives the signal, and then it can also progress.
-
-### Reflection - Instafood and child workflows
-
-Above is a good example of how to use child workflows, and it's also a great example of **why** you want to use them.
-
-Here we are calling a child workflow asynchronously and letting it signal to the parent workflow when the important information is ready. 
-The parent workflow can keep working until this information is ready.
-This is cruicial for a workflow such as this, where we want to inform the customer of an ETA or dispatch a courier, but it doesn't make sense for the restaurant preparation workflow to have this responsibility.
-
-Similarly, the primary workflow doesn't concern itself with how each restaurant implements the various requirements for updating ETA and status. This makes the workflow simple to implement and easy to understand.
 ## Running a Happy-Path Scenario
 
 To wrap-up, let’s run a whole order scenario. This scenario is part of the test suite included with our sample project. The only requirement is running both Instafood and MegaBurger server as described in the previous steps. This test case describes a client ordering through Instafood MegaBurger’s new *Vegan Burger* for pick-up:
 
 Let's start by running the server. This can be accomplished by running
+
   ```bash
   cadence-cookbooks-instafood/instafood$ ./gradlew test
   ```
@@ -491,7 +406,6 @@ class InstafoodApplicationTest {
 ```
 
 We have 3 actors in this scenario: Instafood, MegaBurger and the Client.
-
 
 1. The Client sends order to Instafood.
 2. Once the order reaches MegaBurger (order status is `PENDING`), MegaBurgers marks it as `ACCEPTED` and sends an ETA.

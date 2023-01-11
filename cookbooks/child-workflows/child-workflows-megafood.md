@@ -162,7 +162,6 @@ to get our Instafood application running we first need to register a domain for 
    *Connection Info* tab, and will look like this: "ab-cd12ef23-45gh-4baf-ad99-df4xy-azba45bc0c8da111.elb.us-east-1.amazonaws.com". We'll call this the <cadence_host>.
 
 
-
 3. We can now test our connection by listing current domains:
 
    ```bash
@@ -193,15 +192,23 @@ to get our Instafood application running we first need to register a domain for 
    cadenceHost=<cadence_host>
    ```
 
-3. You can now run the app by  
-   ```bash
-   cadence-cookbooks-instafood/instafood$ ./gradlew run
-   ```
-   or executing *InstafoodApplication* main class from your IDE:
+3. Run the megaburgers API:
 
-   ![Running Instafood app](images/run_instafood.png)
+    ```bash
+    cadence-cookbooks-instafood/megaburgers$ ./gradlew run
+    ```
 
-4. Check it is running by looking into its terminal output:
+4. You can now run the app by  
+
+    ```bash
+    cadence-cookbooks-instafood/instafood$ ./gradlew run
+    ```
+
+    or executing *InstafoodApplication* main class from your IDE:
+
+    ![Running Instafood app](images/run_instafood.png)
+
+5. Check it is running by looking into its terminal output:
 
    ![Instafood running terminal output](images/instafood_app_running.png)
 
