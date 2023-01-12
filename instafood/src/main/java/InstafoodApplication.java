@@ -1,5 +1,6 @@
 import com.google.common.base.Strings;
 import com.instafood.orders.delivery.CourierDeliveryWorkflowImpl;
+import com.instafood.orders.delivery.activities.CourierGPSActivitiesImpl;
 import com.instafood.orders.dispatcher.OrderWorkflowImpl;
 import com.instafood.orders.megaburger.MegaBurgerOrderWorkflowImpl;
 import com.instafood.orders.megaburger.activities.MegaBurgerRestApiOrderActivities;
@@ -30,7 +31,8 @@ public class InstafoodApplication {
         Worker worker = factory.newWorker(TASK_LIST);
         worker.registerWorkflowImplementationTypes(OrderWorkflowImpl.class, MegaBurgerOrderWorkflowImpl.class,
                 CourierDeliveryWorkflowImpl.class);
-        worker.registerActivitiesImplementations(new MegaBurgerRestApiOrderActivities());
+        worker.registerActivitiesImplementations(new MegaBurgerRestApiOrderActivities(),
+                new CourierGPSActivitiesImpl());
         factory.start();
     }
 

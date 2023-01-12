@@ -1,5 +1,6 @@
 package com.instafood.orders.delivery;
 
+import com.uber.cadence.workflow.QueryMethod;
 import com.uber.cadence.workflow.SignalMethod;
 import com.uber.cadence.workflow.WorkflowMethod;
 
@@ -9,4 +10,7 @@ public interface CourierDeliveryWorkflow {
 
     @SignalMethod
     void updateStatus(CourierDeliveryStatus status);
+
+    @QueryMethod
+    boolean courierSupportsGPSTracking();
 }

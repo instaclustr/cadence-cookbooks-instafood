@@ -378,33 +378,57 @@ class InstafoodApplicationTest {
     // ...
 
     @Test
-    public void givenAnOrderItShouldBeSentToMegaBurgerAndBeDeliveredAccordingly() {
-        FoodOrder order = new FoodOrder(Restaurant.MEGABURGER, "Vegan Burger", 2, "+54 11 2343-2324", "Díaz velez 433, La lucila", true);
+      public void givenAnOrderWithDeliveryItShoulBeSentToMegaBurgerAndDeliveredByACourierAccordingly() {
+          FoodOrder order = new FoodOrder(Restaurant.MEGABURGER, "vegan burger", 2, "+54 112343-2324",
+                          "Díaz velez 433, La lucila", false);
 
-        // Client orders food
-        WorkflowExecution workflowExecution = WorkflowClient.start(orderWorkflow::orderFood, order);
+          // Client orders food
+          WorkflowExecution workflowExecution = WorkflowClient.start(orderWorkflow::orderFood, order);
 
-        // Wait until order is pending Megaburger's acceptance
-        await().until(() -> OrderStatus.PENDING.equals(orderWorkflow.getStatus()));
+          // Wait until order is pending Megaburger's acceptance
+          await().until(() -> OrderStatus.PENDING.equals(orderWorkflow.getStatus()));
 
-        // Megaburger accepts order and sends ETA
-        megaBurgerOrdersApiClient.updateStatusAndEta(getLastOrderId(), "ACCEPTED", 15);
-        await().until(() -> OrderStatus.ACCEPTED.equals(orderWorkflow.getStatus()));
+          // Megaburger accepts order and sends ETA
+          megaBurgerOrdersApiClient.updateStatusAndEta(getLastOrderId(), "ACCEPTED", 15);
 
-        // Megaburger starts cooking order
-        megaBurgerOrdersApiClient.updateStatus(getLastOrderId(), "COOKING");
-        await().until(() -> OrderStatus.COOKING.equals(orderWorkflow.getStatus()));
+          // Wait until order is accepted and we have an ETA
+          await().until(() -> OrderStatus.ACCEPTED.equals(orderWorkflow.getStatus()));
+          await().until(() -> orderWorkflow.getEtaInMinutes() != -1);
 
-        // Megaburger signals order is ready
-        megaBurgerOrdersApiClient.updateStatus(getLastOrderId(), "READY");
-        await().until(() -> OrderStatus.READY.equals(orderWorkflow.getStatus()));
+          // Megaburger marks order as ready
+          megaBurgerOrdersApiClient.updateStatus(getLastOrderId(), "READY");
 
-        // Megaburger signals order has been picked-up
-        megaBurgerOrdersApiClient.updateStatus(getLastOrderId(), "RESTAURANT_DELIVERED");
-        await().until(() -> OrderStatus.RESTAURANT_DELIVERED.equals(orderWorkflow.getStatus()));
+          await().until(() -> getOpenCourierDeliveryWorkflowsWithParentId(workflowExecution.getWorkflowId())
+                          .size() != 0);
+          String courierDeliveryWorkflowId = getOpenCourierDeliveryWorkflowsWithParentId(
+                          workflowExecution.getWorkflowId()).get(0)
+                          .getExecution().getWorkflowId();
+          CourierDeliveryWorkflow courierDeliveryWorkflow = workflowClient.newWorkflowStub(
+                          CourierDeliveryWorkflow.class,
+                          courierDeliveryWorkflowId);
 
-        await().until(() -> workflowHistoryHasEvent(workflowClient, workflowExecution, EventType.WorkflowExecutionCompleted));
-    }
+          // Courier accepts order
+          courierDeliveryWorkflow.updateStatus(CourierDeliveryStatus.ACCEPTED);
+          await().until(() -> OrderStatus.COURIER_ACCEPTED.equals(orderWorkflow.getStatus()));
+
+          // All new courier workflows should support GPS tracking, since this is a new
+          // job it will return true
+          assertTrue(courierDeliveryWorkflow.courierSupportsGPSTracking());
+
+          // Courier picked up order
+          courierDeliveryWorkflow.updateStatus(CourierDeliveryStatus.PICKED_UP);
+          // Megaburger marks order as delivered
+          megaBurgerOrdersApiClient.updateStatus(getLastOrderId(), "RESTAURANT_DELIVERED");
+
+          // Courier delivered order
+          courierDeliveryWorkflow.updateStatus(CourierDeliveryStatus.DELIVERED);
+          await().until(() -> OrderStatus.COURIER_DELIVERED.equals(orderWorkflow.getStatus()));
+
+          await().until(
+                          () -> workflowHistoryHasEvent(workflowClient, workflowExecution,
+                                          EventType.WorkflowExecutionCompleted));
+
+      }
 }
 ```
 
@@ -416,8 +440,45 @@ We have 3 actors in this scenario: Instafood, MegaBurger and the Client.
    1. MegaBurger marks order as `COOKING`.
    2. MegaBurger marks order as `READY` (this means it's ready for delivery/pickup).
    3. MegaBurger marks order as `RESTAURANT_DELIVERD`.
-4. Since this was an order created as pickup, once the Client has done so the workflow is complete.
+4. Since this was an order created as delivery, we now start the Courier workflow to deliver the order
+    1. The courier accepts the job - since we now support GPS tracking we can query this support and assert it returns true
+    2. Then picks up the order
+    3. Finally, the order is delivered
+5. Once the order is delivered, our entire workflow is completed.
+
+## Regression testing old workflows
+
+As we mentioned before, our workflow versioning logic is built to ensure legacy and in-flight workflows are not made non-deterministic by adding new functionality.
+
+So how can we test this?
+
+Cadence supports this with the *WorkflowReplayer* class. This class can take the history of a workflow and replay it against the current implementation. Any non-determinism errors will be detected and thrown by the unit test.
+
+The history can be retrieved directly from the Cadence cluster, or loaded from a *json* file, as demonstrated in the following example.
+
+```java
+class InstafoodApplicationTest {
+
+  // ...
+
+  @Test
+      public void givenCourierWorkflowWhenGpsNotSupportedThenHistoryReplaysCorrectly() throws Exception {
+          // We have stored the history for a workflow that was executed before GPS
+          // support was added into a file - "resources/history-gps-not-supported.json"
+
+          // We use the workflow replayer to ensure that our legacy workflow can still
+          // execute correctly.
+
+          WorkflowReplayer.replayWorkflowExecutionFromResource("history-gps-not-supported.json",
+                          CourierDeliveryWorkflowImpl.class);
+
+          // If we did not implement our version check, this method would throw an
+          // exception -- try it yourself by editing the CourierDeliveryWorkflowImpl
+          // class!
+      } 
+}
+```
 
 ## Wrapping Up
 
-In this article we got first-hand experience with Cadence and how to use child workflows. We also showed you how to get a Cadence cluster running with our Instaclustr platform and how easy it is to get an application connect to it. If you’re interested in Cadence and want to learn more about it, you may read about other use cases and documentation at [Cadence workflow - Use cases](https://cadenceworkflow.io/docs/use-cases/).
+In this article we introduced the concept of Cadence workflow versioning, and went into a bit of detail explaining how and why it works the way it does. We also showed you how to get a Cadence cluster running with our Instaclustr platform and how easy it is to get an application connect to it. If you’re interested in Cadence and want to learn more about it, you may read about other use cases and documentation at [Cadence workflow - Use cases](https://cadenceworkflow.io/docs/use-cases/).

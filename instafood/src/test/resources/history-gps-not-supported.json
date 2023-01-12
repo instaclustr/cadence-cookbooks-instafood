@@ -1,0 +1,459 @@
+[
+    {
+        "eventId": 1,
+        "timestamp": 1673493956391823134,
+        "eventType": "WorkflowExecutionStarted",
+        "version": -24,
+        "taskId": 1048576,
+        "workflowExecutionStartedEventAttributes": {
+            "workflowType": {
+                "name": "CourierDeliveryWorkflow::deliverOrder"
+            },
+            "parentWorkflowDomain": "instafood",
+            "parentWorkflowExecution": {
+                "workflowId": "8e3ae8a9-72dc-4d18-afca-866ef375cfd4",
+                "runId": "f8f77ce0-b425-4ed9-bec1-9198952ec940"
+            },
+            "parentInitiatedEventId": 27,
+            "taskList": {
+                "name": "test-worker-task-list"
+            },
+            "input": "eyJyZXN0YXVyYW50IjoiTUVHQUJVUkdFUiIsImFkZHJlc3MiOiJEw61heiB2ZWxleiA0MzMsIExhIGx1Y2lsYSIsInRlbGVwaG9uZSI6Iis1NCAxMTIzNDMtMjMyNCJ9",
+            "executionStartToCloseTimeoutSeconds": 300,
+            "taskStartToCloseTimeoutSeconds": 10,
+            "originalExecutionRunId": "e2b097a9-9ed6-4115-ac5e-7e0c1e6425f1",
+            "firstExecutionRunId": "e2b097a9-9ed6-4115-ac5e-7e0c1e6425f1",
+            "firstDecisionTaskBackoffSeconds": 0
+        }
+    },
+    {
+        "eventId": 2,
+        "timestamp": 1673493956503757897,
+        "eventType": "DecisionTaskScheduled",
+        "version": -24,
+        "taskId": 1048580,
+        "decisionTaskScheduledEventAttributes": {
+            "taskList": {
+                "name": "test-worker-task-list"
+            },
+            "startToCloseTimeoutSeconds": 10
+        }
+    },
+    {
+        "eventId": 3,
+        "timestamp": 1673493956551816330,
+        "eventType": "DecisionTaskStarted",
+        "version": -24,
+        "taskId": 1048583,
+        "decisionTaskStartedEventAttributes": {
+            "scheduledEventId": 2,
+            "identity": "96024@jdelcast-mac-0",
+            "requestId": "d8ee531b-8f68-4ca6-8782-96704afdeee8"
+        }
+    },
+    {
+        "eventId": 4,
+        "timestamp": 1673493956841852154,
+        "eventType": "DecisionTaskCompleted",
+        "version": -24,
+        "taskId": 1048586,
+        "decisionTaskCompletedEventAttributes": {
+            "scheduledEventId": 2,
+            "startedEventId": 3,
+            "identity": "96024@jdelcast-mac-0"
+        }
+    },
+    {
+        "eventId": 5,
+        "timestamp": 1673493958372505399,
+        "eventType": "WorkflowExecutionSignaled",
+        "version": -24,
+        "taskId": 1048588,
+        "workflowExecutionSignaledEventAttributes": {
+            "signalName": "CourierDeliveryWorkflow::updateStatus",
+            "input": "IkFDQ0VQVEVEIg=="
+        }
+    },
+    {
+        "eventId": 6,
+        "timestamp": 1673493958372513988,
+        "eventType": "DecisionTaskScheduled",
+        "version": -24,
+        "taskId": 1048590,
+        "decisionTaskScheduledEventAttributes": {
+            "taskList": {
+                "name": "sticky:jdelcast-mac-0:5b31d8c2-2941-4eb2-82cc-45b9f134b815"
+            },
+            "startToCloseTimeoutSeconds": 10
+        }
+    },
+    {
+        "eventId": 7,
+        "timestamp": 1673493958432202781,
+        "eventType": "DecisionTaskStarted",
+        "version": -24,
+        "taskId": 1048594,
+        "decisionTaskStartedEventAttributes": {
+            "scheduledEventId": 6,
+            "identity": "96024@jdelcast-mac-0",
+            "requestId": "e9ae7afd-b0e1-4624-811e-1b58d0b35d97"
+        }
+    },
+    {
+        "eventId": 8,
+        "timestamp": 1673493958702798423,
+        "eventType": "DecisionTaskCompleted",
+        "version": -24,
+        "taskId": 1048597,
+        "decisionTaskCompletedEventAttributes": {
+            "scheduledEventId": 6,
+            "startedEventId": 7,
+            "identity": "96024@jdelcast-mac-0"
+        }
+    },
+    {
+        "eventId": 9,
+        "timestamp": 1673493958703331600,
+        "eventType": "SignalExternalWorkflowExecutionInitiated",
+        "version": -24,
+        "taskId": 1048598,
+        "signalExternalWorkflowExecutionInitiatedEventAttributes": {
+            "decisionTaskCompletedEventId": 8,
+            "domain": "instafood",
+            "workflowExecution": {
+                "workflowId": "8e3ae8a9-72dc-4d18-afca-866ef375cfd4"
+            },
+            "signalName": "OrderWorkflow::updateStatus",
+            "input": "IkNPVVJJRVJfQUNDRVBURUQi",
+            "control": "MA=="
+        }
+    },
+    {
+        "eventId": 10,
+        "timestamp": 1673493958810034745,
+        "eventType": "ExternalWorkflowExecutionSignaled",
+        "version": -24,
+        "taskId": 1048601,
+        "externalWorkflowExecutionSignaledEventAttributes": {
+            "initiatedEventId": 9,
+            "domain": "instafood",
+            "workflowExecution": {
+                "workflowId": "8e3ae8a9-72dc-4d18-afca-866ef375cfd4"
+            },
+            "control": "MA=="
+        }
+    },
+    {
+        "eventId": 11,
+        "timestamp": 1673493958810057895,
+        "eventType": "DecisionTaskScheduled",
+        "version": -24,
+        "taskId": 1048603,
+        "decisionTaskScheduledEventAttributes": {
+            "taskList": {
+                "name": "sticky:jdelcast-mac-0:5b31d8c2-2941-4eb2-82cc-45b9f134b815"
+            },
+            "startToCloseTimeoutSeconds": 10
+        }
+    },
+    {
+        "eventId": 12,
+        "timestamp": 1673493958912713751,
+        "eventType": "DecisionTaskStarted",
+        "version": -24,
+        "taskId": 1048607,
+        "decisionTaskStartedEventAttributes": {
+            "scheduledEventId": 11,
+            "identity": "96024@jdelcast-mac-0",
+            "requestId": "4976e710-acae-4960-b4e0-d0ac5da5ce19"
+        }
+    },
+    {
+        "eventId": 13,
+        "timestamp": 1673493959231295247,
+        "eventType": "DecisionTaskCompleted",
+        "version": -24,
+        "taskId": 1048610,
+        "decisionTaskCompletedEventAttributes": {
+            "scheduledEventId": 11,
+            "startedEventId": 12,
+            "identity": "96024@jdelcast-mac-0"
+        }
+    },
+    {
+        "eventId": 14,
+        "timestamp": 1673493959233775319,
+        "eventType": "MarkerRecorded",
+        "version": -24,
+        "taskId": 1048611,
+        "markerRecordedEventAttributes": {
+            "markerName": "Version",
+            "details": "LTE=",
+            "decisionTaskCompletedEventId": 13,
+            "header": {
+                "fields": {
+                    "MutableMarkerHeader": "eyJpZCI6IkdQU1RyYWNraW5nU3VwcG9ydGVkIiwiZXZlbnRJZCI6MTQsImFjY2Vzc0NvdW50IjowfQ=="
+                }
+            }
+        }
+    },
+    {
+        "eventId": 15,
+        "timestamp": 1673493959252533139,
+        "eventType": "UpsertWorkflowSearchAttributes",
+        "version": -24,
+        "taskId": 1048612,
+        "upsertWorkflowSearchAttributesEventAttributes": {
+            "decisionTaskCompletedEventId": 13,
+            "searchAttributes": {
+                "indexedFields": {
+                    "CadenceChangeVersion": "WyJHUFNUcmFja2luZ1N1cHBvcnRlZC0tMSJd"
+                }
+            }
+        }
+    },
+    {
+        "eventId": 19,
+        "timestamp": 1673493959632514571,
+        "eventType": "DecisionTaskScheduled",
+        "version": -24,
+        "taskId": 1048623,
+        "decisionTaskScheduledEventAttributes": {
+            "taskList": {
+                "name": "sticky:jdelcast-mac-0:5b31d8c2-2941-4eb2-82cc-45b9f134b815"
+            },
+            "startToCloseTimeoutSeconds": 10
+        }
+    },
+    {
+        "eventId": 20,
+        "timestamp": 1673493959674857258,
+        "eventType": "DecisionTaskStarted",
+        "version": -24,
+        "taskId": 1048627,
+        "decisionTaskStartedEventAttributes": {
+            "scheduledEventId": 19,
+            "identity": "96024@jdelcast-mac-0",
+            "requestId": "6410e213-cd35-4dc8-bce5-58aec5e1c25c"
+        }
+    },
+    {
+        "eventId": 21,
+        "timestamp": 1673493959983283178,
+        "eventType": "DecisionTaskCompleted",
+        "version": -24,
+        "taskId": 1048630,
+        "decisionTaskCompletedEventAttributes": {
+            "scheduledEventId": 19,
+            "startedEventId": 20,
+            "identity": "96024@jdelcast-mac-0"
+        }
+    },
+    {
+        "eventId": 22,
+        "timestamp": 1673493960156957853,
+        "eventType": "WorkflowExecutionSignaled",
+        "version": -24,
+        "taskId": 1048632,
+        "workflowExecutionSignaledEventAttributes": {
+            "signalName": "CourierDeliveryWorkflow::updateStatus",
+            "input": "IlBJQ0tFRF9VUCI="
+        }
+    },
+    {
+        "eventId": 23,
+        "timestamp": 1673493960156966427,
+        "eventType": "DecisionTaskScheduled",
+        "version": -24,
+        "taskId": 1048634,
+        "decisionTaskScheduledEventAttributes": {
+            "taskList": {
+                "name": "sticky:jdelcast-mac-0:5b31d8c2-2941-4eb2-82cc-45b9f134b815"
+            },
+            "startToCloseTimeoutSeconds": 10
+        }
+    },
+    {
+        "eventId": 24,
+        "timestamp": 1673493960215330232,
+        "eventType": "DecisionTaskStarted",
+        "version": -24,
+        "taskId": 1048638,
+        "decisionTaskStartedEventAttributes": {
+            "scheduledEventId": 23,
+            "identity": "96024@jdelcast-mac-0",
+            "requestId": "70b23c7a-039b-4e53-92f5-5f3ee74793bb"
+        }
+    },
+    {
+        "eventId": 25,
+        "timestamp": 1673493960504422318,
+        "eventType": "DecisionTaskCompleted",
+        "version": -24,
+        "taskId": 1048641,
+        "decisionTaskCompletedEventAttributes": {
+            "scheduledEventId": 23,
+            "startedEventId": 24,
+            "identity": "96024@jdelcast-mac-0"
+        }
+    },
+    {
+        "eventId": 26,
+        "timestamp": 1673493960504485959,
+        "eventType": "SignalExternalWorkflowExecutionInitiated",
+        "version": -24,
+        "taskId": 1048642,
+        "signalExternalWorkflowExecutionInitiatedEventAttributes": {
+            "decisionTaskCompletedEventId": 25,
+            "domain": "instafood",
+            "workflowExecution": {
+                "workflowId": "8e3ae8a9-72dc-4d18-afca-866ef375cfd4"
+            },
+            "signalName": "OrderWorkflow::updateStatus",
+            "input": "IlBJQ0tFRF9VUCI=",
+            "control": "Mg=="
+        }
+    },
+    {
+        "eventId": 27,
+        "timestamp": 1673493960458292737,
+        "eventType": "WorkflowExecutionSignaled",
+        "version": -24,
+        "taskId": 1048643,
+        "workflowExecutionSignaledEventAttributes": {
+            "signalName": "CourierDeliveryWorkflow::updateStatus",
+            "input": "IkRFTElWRVJFRCI="
+        }
+    },
+    {
+        "eventId": 28,
+        "timestamp": 1673493960504499013,
+        "eventType": "DecisionTaskScheduled",
+        "version": -24,
+        "taskId": 1048647,
+        "decisionTaskScheduledEventAttributes": {
+            "taskList": {
+                "name": "sticky:jdelcast-mac-0:5b31d8c2-2941-4eb2-82cc-45b9f134b815"
+            },
+            "startToCloseTimeoutSeconds": 10
+        }
+    },
+    {
+        "eventId": 29,
+        "timestamp": 1673493960652669336,
+        "eventType": "ExternalWorkflowExecutionSignaled",
+        "version": -24,
+        "taskId": 1048652,
+        "externalWorkflowExecutionSignaledEventAttributes": {
+            "initiatedEventId": 26,
+            "domain": "instafood",
+            "workflowExecution": {
+                "workflowId": "8e3ae8a9-72dc-4d18-afca-866ef375cfd4"
+            },
+            "control": "Mg=="
+        }
+    },
+    {
+        "eventId": 30,
+        "timestamp": 1673493960672887726,
+        "eventType": "DecisionTaskStarted",
+        "version": -24,
+        "taskId": 1048654,
+        "decisionTaskStartedEventAttributes": {
+            "scheduledEventId": 28,
+            "identity": "96024@jdelcast-mac-0",
+            "requestId": "53329f7f-644b-4ed0-9fab-5318eae9cd7c"
+        }
+    },
+    {
+        "eventId": 31,
+        "timestamp": 1673493960962377046,
+        "eventType": "DecisionTaskCompleted",
+        "version": -24,
+        "taskId": 1048657,
+        "decisionTaskCompletedEventAttributes": {
+            "scheduledEventId": 28,
+            "startedEventId": 30,
+            "identity": "96024@jdelcast-mac-0"
+        }
+    },
+    {
+        "eventId": 32,
+        "timestamp": 1673493960966488529,
+        "eventType": "SignalExternalWorkflowExecutionInitiated",
+        "version": -24,
+        "taskId": 1048658,
+        "signalExternalWorkflowExecutionInitiatedEventAttributes": {
+            "decisionTaskCompletedEventId": 31,
+            "domain": "instafood",
+            "workflowExecution": {
+                "workflowId": "8e3ae8a9-72dc-4d18-afca-866ef375cfd4"
+            },
+            "signalName": "OrderWorkflow::updateStatus",
+            "input": "IkNPVVJJRVJfREVMSVZFUkVEIg==",
+            "control": "Mw=="
+        }
+    },
+    {
+        "eventId": 33,
+        "timestamp": 1673493961021731696,
+        "eventType": "ExternalWorkflowExecutionSignaled",
+        "version": -24,
+        "taskId": 1048661,
+        "externalWorkflowExecutionSignaledEventAttributes": {
+            "initiatedEventId": 32,
+            "domain": "instafood",
+            "workflowExecution": {
+                "workflowId": "8e3ae8a9-72dc-4d18-afca-866ef375cfd4"
+            },
+            "control": "Mw=="
+        }
+    },
+    {
+        "eventId": 34,
+        "timestamp": 1673493961021744957,
+        "eventType": "DecisionTaskScheduled",
+        "version": -24,
+        "taskId": 1048663,
+        "decisionTaskScheduledEventAttributes": {
+            "taskList": {
+                "name": "sticky:jdelcast-mac-0:5b31d8c2-2941-4eb2-82cc-45b9f134b815"
+            },
+            "startToCloseTimeoutSeconds": 10
+        }
+    },
+    {
+        "eventId": 35,
+        "timestamp": 1673493962093177180,
+        "eventType": "DecisionTaskStarted",
+        "version": -24,
+        "taskId": 1048667,
+        "decisionTaskStartedEventAttributes": {
+            "scheduledEventId": 34,
+            "identity": "96024@jdelcast-mac-0",
+            "requestId": "e6046984-558b-436e-85c7-8bb49b43657a"
+        }
+    },
+    {
+        "eventId": 36,
+        "timestamp": 1673493962522386562,
+        "eventType": "DecisionTaskCompleted",
+        "version": -24,
+        "taskId": 1048670,
+        "decisionTaskCompletedEventAttributes": {
+            "scheduledEventId": 34,
+            "startedEventId": 35,
+            "identity": "96024@jdelcast-mac-0"
+        }
+    },
+    {
+        "eventId": 37,
+        "timestamp": 1673493962524148686,
+        "eventType": "WorkflowExecutionCompleted",
+        "version": -24,
+        "taskId": 1048671,
+        "workflowExecutionCompletedEventAttributes": {
+            "decisionTaskCompletedEventId": 36
+        }
+    }
+]

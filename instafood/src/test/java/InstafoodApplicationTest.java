@@ -1,5 +1,6 @@
 import com.instafood.orders.delivery.CourierDeliveryStatus;
 import com.instafood.orders.delivery.CourierDeliveryWorkflow;
+import com.instafood.orders.delivery.CourierDeliveryWorkflowImpl;
 import com.instafood.orders.dispatcher.OrderWorkflow;
 import com.instafood.orders.dispatcher.domain.FoodOrder;
 import com.instafood.orders.dispatcher.domain.OrderStatus;
@@ -20,6 +21,7 @@ import com.uber.cadence.client.WorkflowClientOptions;
 import com.uber.cadence.client.WorkflowOptions;
 import com.uber.cadence.serviceclient.ClientOptions;
 import com.uber.cadence.serviceclient.WorkflowServiceTChannel;
+import com.uber.cadence.testing.WorkflowReplayer;
 import org.apache.thrift.TException;
 import org.awaitility.Awaitility;
 import org.junit.jupiter.api.BeforeEach;
@@ -31,6 +33,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import static org.awaitility.Awaitility.await;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class InstafoodApplicationTest {
 
@@ -174,6 +177,26 @@ class InstafoodApplicationTest {
                 await().until(
                                 () -> workflowHistoryHasEvent(workflowClient, workflowExecution,
                                                 EventType.WorkflowExecutionCompleted));
+
+                // All new courier workflows should support GPS tracking, since this is a new
+                // job it will return true
+                assertTrue(courierDeliveryWorkflow.courierSupportsGPSTracking());
+        }
+
+        @Test
+        public void givenCourierWorkflowWhenGpsNotSupportedThenHistoryReplaysCorrectly() throws Exception {
+                // We have stored the history for a workflow that was executed before GPS
+                // support was added into a file - "resources/history-gps-not-supported.json"
+
+                // We use the workflow replayer to ensure that our legacy workflow can still
+                // execute correctly.
+
+                WorkflowReplayer.replayWorkflowExecutionFromResource("history-gps-not-supported.json",
+                                CourierDeliveryWorkflowImpl.class);
+
+                // If we did not implement our version check, this method would throw an
+                // exception -- try it yourself by editing the CourierDeliveryWorkflowImpl
+                // class!
         }
 
         private List<WorkflowExecutionInfo> getOpenCourierDeliveryWorkflowsWithParentId(String parentWorkflowId) {
